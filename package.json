@@ -1,0 +1,23 @@
+{
+  "name": "merkle-distributor",
+  "version": "1.0.0",
+  "main": "index.js",
+  "author": "theplayer06 <manekiswap@gmail.com>",
+  "license": "MIT",
+  "scripts": {
+    "generate-merkle-root": "ts-node scripts/generate-merkle-root.ts",
+    "generate-merkle-root:example": "ts-node scripts/generate-merkle-root.ts --input scripts/example.json"
+  },
+  "devDependencies": {
+    "@types/node": "17.0.11",
+    "commander": "8.3.0",
+    "near-api-js": "0.44.2",
+    "ts-node": "10.4.0",
+    "typescript": "4.5.5"
+  },
+  "dependencies": {
+    "bn.js": "5.2.0",
+    "keccak256": "1.0.6",
+    "merkletreejs": "0.2.27"
+  }
+}
