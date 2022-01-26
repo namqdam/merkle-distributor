@@ -50,7 +50,7 @@ export function parseBalanceMap(balances: BalanceFormat[]): MerkleDistributorInf
     const { amount, flags } = dataByAddress[address];
     memo[address] = {
       index,
-      amount: amount.toString('hex'),
+      amount: amount.toString(),
       proof: tree.getProof(new BN(index), address, amount).map((proof) => proof.substring(2)),
       ...(flags ? { flags } : {})
     };
@@ -61,7 +61,7 @@ export function parseBalanceMap(balances: BalanceFormat[]): MerkleDistributorInf
 
   return {
     merkleRoot: tree.getHexRoot().substring(2),
-    tokenTotal: tokenTotal.toString('hex'),
+    tokenTotal: tokenTotal.toString(),
     claims
   };
 }
