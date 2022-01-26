@@ -2,8 +2,8 @@
   "name": "merkle-distributor",
   "version": "1.0.0",
   "main": "index.js",
-  "author": "theplayer06 <manekiswap@gmail.com>",
-  "license": "MIT",
+  "author": "Nam Dam <namqdam@gmail.com>",
+  "license": "GPL-3.0",
   "scripts": {
     "generate-merkle-root": "ts-node scripts/generate-merkle-root.ts",
     "generate-merkle-root:example": "ts-node scripts/generate-merkle-root.ts --input scripts/example.json"
