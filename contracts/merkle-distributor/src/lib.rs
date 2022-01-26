@@ -22,6 +22,7 @@ pub struct MerkleDistributor {
 impl MerkleDistributor {
     #[init]
     pub fn initialize(balance: Balance, merkle_root: String) -> Self {
+        assert!(env::state_read::<Self>().is_none(), "Already initialized");
         Self {
             balance,
             merkle_root: <[u8; 32]>::from_hex(merkle_root).ok().unwrap().to_vec(),
