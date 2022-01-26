@@ -68,6 +68,7 @@ impl MerkleDistributor {
         self.paused = false;
     }
 
+    #[payable]
     pub fn add_balance(&mut self) {
         let balance = self.internal_deposit();
         self.balance += balance;
@@ -100,6 +101,7 @@ impl MerkleDistributor {
         self.balance -= amount
     }
 
+    #[payable]
     pub fn claim(&mut self, index: u64, amount: u128, proof: Vec<String>) -> () {
         self.assert_paused();
         assert!(!self.is_claimed(), "Already claimed");

@@ -55,23 +55,31 @@ Run this command to set the environment variable:
 
 ```bash
 source neardev/dev-account.env
+export ACCOUNT_ID=acb
 ```
 
 You can tell if the environment variable is set correctly if your command line prints the account name after this command:
 ```bash
 echo $CONTRACT_NAME
+echo $ACCOUNT_ID
 ```
 
 The next command will initialize the contract using the `new` method:
 
 ```bash
-near call $CONTRACT_NAME initialize '{"balance": 1100, "merkle_root": "xxx"}' --accountId $CONTRACT_NAME
+near call $CONTRACT_NAME initialize '{"owner_id": "aaa", "merkle_root": "bbb"}' --accountId $CONTRACT_NAME
+```
+
+To add balance:
+
+```bash
+near call $CONTRACT_NAME add_balance -accountId $CONTRACT_NAME --amount 1100
 ```
 
 To claim:
 
 ```bash
-near call $CONTRACT_NAME claim '{"index": 0, "amount": 100, "proof": ["xxx"]}' --accountId $CONTRACT_NAME
+near call $CONTRACT_NAME claim '{"index": 0, "amount": 100, "proof": ["xxx"]}' --accountId $ACCOUNT_ID
 ```
 
 Notes
