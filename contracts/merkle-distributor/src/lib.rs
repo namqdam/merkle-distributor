@@ -3,45 +3,107 @@ use near_sdk::{
     borsh::{self, BorshDeserialize, BorshSerialize},
     collections::UnorderedMap,
     env::{self, keccak256},
-    near_bindgen, AccountId, Balance, PanicOnDefault,
+    near_bindgen, AccountId, Balance, EpochHeight, PanicOnDefault,
 };
 
-pub mod merkle_proof;
+mod internal;
+mod merkle_proof;
 
 near_sdk::setup_alloc!();
+
+#[derive(BorshDeserialize, BorshSerialize, Debug, PartialEq)]
+pub struct Account {
+    pub claimed_amount: Balance,
+    pub claimed_epoch_height: EpochHeight,
+}
+
+impl Default for Account {
+    fn default() -> Self {
+        Self {
+            claimed_amount: 0,
+            claimed_epoch_height: 0,
+        }
+    }
+}
 
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize, PanicOnDefault)]
 pub struct MerkleDistributor {
-    balance: Balance,
-    merkle_root: Vec<u8>,
-    claimed_map: UnorderedMap<AccountId, Balance>,
+    pub owner_id: AccountId,
+    pub balance: Balance,
+    pub merkle_root: Vec<u8>,
+    pub accounts: UnorderedMap<AccountId, Account>,
+    pub paused: bool,
 }
 
 #[near_bindgen]
 impl MerkleDistributor {
     #[init]
-    pub fn initialize(balance: Balance, merkle_root: String) -> Self {
+    pub fn initialize(owner_id: AccountId, merkle_root: String) -> Self {
         assert!(env::state_read::<Self>().is_none(), "Already initialized");
+        assert!(
+            env::is_valid_account_id(owner_id.as_bytes()),
+            "The owner account ID is invalid"
+        );
         Self {
-            balance,
+            owner_id,
+            balance: 0,
             merkle_root: <[u8; 32]>::from_hex(merkle_root).ok().unwrap().to_vec(),
-            claimed_map: UnorderedMap::new(b"c".to_vec()),
+            accounts: UnorderedMap::new(b"c".to_vec()),
+            paused: false,
         }
     }
 
+    pub fn pause(&mut self) -> () {
+        self.assert_owner();
+        assert!(!self.paused, "The contract is already paused");
+
+        self.paused = true;
+    }
+
+    pub fn resume(&mut self) -> () {
+        self.assert_owner();
+        assert!(self.paused, "The contract is not paused");
+
+        self.paused = false;
+    }
+
+    pub fn add_balance(&mut self) {
+        let balance = self.internal_deposit();
+        self.balance += balance;
+    }
+
+    pub fn get_balance(&self) -> Balance {
+        self.balance
+    }
+
+    pub fn get_claimed_amount(&self) -> Balance {
+        let account = self
+            .accounts
+            .get(&env::predecessor_account_id())
+            .unwrap_or_default();
+        account.claimed_amount
+    }
+
     pub fn is_claimed(&self) -> bool {
-        let balance = self.claimed_map.get(&env::predecessor_account_id());
-        !balance.is_none()
+        self.get_claimed_amount() > 0
     }
 
     fn set_claim(&mut self, amount: u128) -> () {
-        self.claimed_map
-            .insert(&env::predecessor_account_id(), &amount);
+        self.accounts.insert(
+            &env::predecessor_account_id(),
+            &Account {
+                claimed_amount: amount,
+                claimed_epoch_height: env::epoch_height(),
+            },
+        );
+        self.balance -= amount
     }
 
     pub fn claim(&mut self, index: u64, amount: u128, proof: Vec<String>) -> () {
+        self.assert_paused();
         assert!(!self.is_claimed(), "Already claimed");
+        assert!(self.balance >= amount, "Non-sufficient fund");
 
         let mut _index = index.to_le_bytes().to_vec();
         let mut _account = env::predecessor_account_id().as_bytes().to_vec();
@@ -65,6 +127,7 @@ impl MerkleDistributor {
         );
 
         self.set_claim(amount);
+        self.internal_transfer(amount);
     }
 }
 
@@ -74,9 +137,6 @@ mod tests {
     use near_sdk::MockedBlockchain;
     use near_sdk::{testing_env, VMContext};
 
-    // part of writing unit tests is setting up a mock context
-    // in this example, this is only needed for env::log in the contract
-    // this is also a useful list to peek at when wondering what's available in env::*
     fn get_context(input: Vec<u8>, is_view: bool) -> VMContext {
         VMContext {
             current_account_id: "alice.testnet".to_string(),
@@ -99,12 +159,11 @@ mod tests {
     }
 
     #[test]
-    fn init() {
-        // set up the mock context into the testing environment
+    fn init_successful() {
         let context = get_context(vec![], false);
         testing_env!(context);
         let contract = MerkleDistributor::initialize(
-            1200,
+            env::signer_account_id(),
             "7b8bad907ecad0eab5c376a9926bbb9c38edd7303e1e22e46594eaaa333a5d12".to_string(),
         );
         assert_eq!(false, contract.is_claimed());
@@ -112,12 +171,14 @@ mod tests {
 
     #[test]
     fn claim_successful() {
-        let context = get_context(vec![], false);
+        let mut context = get_context(vec![], false);
+        context.attached_deposit = 1100;
         testing_env!(context);
         let mut contract = MerkleDistributor::initialize(
-            1100,
+            env::signer_account_id(),
             "a53a837856e9004a7737f9cc344e2850ef385807298169004d690dabeea699b0".to_string(),
         );
+        contract.add_balance();
         contract.claim(
             0,
             100,
@@ -129,17 +190,21 @@ mod tests {
             ],
         );
         assert_eq!(true, contract.is_claimed());
+        assert_eq!(1000, contract.get_balance());
+        assert_eq!(100, contract.get_claimed_amount());
     }
 
     #[test]
     #[should_panic(expected = "Failed to verify proof")]
     fn claim_failed_because_input_wrong_amount() {
-        let context = get_context(vec![], false);
+        let mut context = get_context(vec![], false);
+        context.attached_deposit = 1100;
         testing_env!(context);
         let mut contract = MerkleDistributor::initialize(
-            1100,
+            env::signer_account_id(),
             "a53a837856e9004a7737f9cc344e2850ef385807298169004d690dabeea699b0".to_string(),
         );
+        contract.add_balance();
         contract.claim(
             0,
             1000,
@@ -155,12 +220,14 @@ mod tests {
     #[test]
     #[should_panic(expected = "Already claimed")]
     fn claim_failed_because_already_claimed() {
-        let context = get_context(vec![], false);
+        let mut context = get_context(vec![], false);
+        context.attached_deposit = 1100;
         testing_env!(context);
         let mut contract = MerkleDistributor::initialize(
-            1100,
+            env::signer_account_id(),
             "a53a837856e9004a7737f9cc344e2850ef385807298169004d690dabeea699b0".to_string(),
         );
+        contract.add_balance();
         contract.claim(
             0,
             100,
@@ -182,5 +249,42 @@ mod tests {
                 "5f1469d2fe519c64059195d61dbca371ac14314dcdd72e83eaab10ba4e5600c2".to_string(),
             ],
         );
+    }
+
+    #[test]
+    #[should_panic(expected = "Can only be called when not paused")]
+    fn claim_failed_because_contract_is_paused() {
+        let mut context = get_context(vec![], false);
+        context.attached_deposit = 1100;
+        testing_env!(context);
+        let mut contract = MerkleDistributor::initialize(
+            env::predecessor_account_id(),
+            "a53a837856e9004a7737f9cc344e2850ef385807298169004d690dabeea699b0".to_string(),
+        );
+        contract.add_balance();
+        contract.pause();
+        contract.claim(
+            0,
+            100,
+            vec![
+                "16aa0bf4f9a579de1bf742d4f854c322aa94b3eaf3254c13ae5820e3830061b5".to_string(),
+                "afb188661bca1d37b7c6c4cffd2d62ed7bd19bc0844bcdf5f44ebeacb7b394bd".to_string(),
+                "001d2522f71f331abd7bcd7626ef29c44f5769379e54a4a0dd6992bcd1a04793".to_string(),
+                "5f1469d2fe519c64059195d61dbca371ac14314dcdd72e83eaab10ba4e5600c2".to_string(),
+            ],
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "Can only be called by the owner")]
+    fn claim_failed_because_pause_contract_not_by_owner() {
+        let mut context = get_context(vec![], false);
+        context.attached_deposit = 1100;
+        testing_env!(context);
+        let mut contract = MerkleDistributor::initialize(
+            env::signer_account_id(),
+            "a53a837856e9004a7737f9cc344e2850ef385807298169004d690dabeea699b0".to_string(),
+        );
+        contract.pause();
     }
 }
