@@ -67,13 +67,7 @@ echo $ACCOUNT_ID
 The next command will initialize the contract using the `new` method:
 
 ```bash
-near call $CONTRACT_NAME initialize '{"owner_id": "aaa", "merkle_root": "bbb"}' --accountId $CONTRACT_NAME
-```
-
-To add balance:
-
-```bash
-near call $CONTRACT_NAME add_balance -accountId $CONTRACT_NAME --amount 1100
+near call $CONTRACT_NAME initialize '{"owner_id": "aaa", "token_id": "bbb", "merkle_root": "bbb"}' --accountId $CONTRACT_NAME
 ```
 
 To claim:

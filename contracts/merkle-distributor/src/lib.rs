@@ -3,13 +3,15 @@ use near_sdk::{
     borsh::{self, BorshDeserialize, BorshSerialize},
     collections::UnorderedMap,
     env::{self, keccak256},
+    json_types::{U128, U64},
     near_bindgen, AccountId, Balance, EpochHeight, PanicOnDefault,
 };
 
+mod constant;
 mod internal;
 mod merkle_proof;
-
-near_sdk::setup_alloc!();
+mod token;
+mod util;
 
 #[derive(BorshDeserialize, BorshSerialize, Debug, PartialEq)]
 pub struct Account {
@@ -30,6 +32,7 @@ impl Default for Account {
 #[derive(BorshDeserialize, BorshSerialize, PanicOnDefault)]
 pub struct MerkleDistributor {
     pub owner_id: AccountId,
+    pub token_id: AccountId,
     pub balance: Balance,
     pub merkle_root: Vec<u8>,
     pub accounts: UnorderedMap<AccountId, Account>,
@@ -39,7 +42,7 @@ pub struct MerkleDistributor {
 #[near_bindgen]
 impl MerkleDistributor {
     #[init]
-    pub fn initialize(owner_id: AccountId, merkle_root: String) -> Self {
+    pub fn initialize(owner_id: AccountId, token_id: AccountId, merkle_root: String) -> Self {
         assert!(env::state_read::<Self>().is_none(), "Already initialized");
         assert!(
             env::is_valid_account_id(owner_id.as_bytes()),
@@ -47,6 +50,7 @@ impl MerkleDistributor {
         );
         Self {
             owner_id,
+            token_id,
             balance: 0,
             merkle_root: <[u8; 32]>::from_hex(merkle_root).ok().unwrap().to_vec(),
             accounts: UnorderedMap::new(b"c".to_vec()),
@@ -68,12 +72,6 @@ impl MerkleDistributor {
         self.paused = false;
     }
 
-    #[payable]
-    pub fn add_balance(&mut self) {
-        let balance = self.internal_deposit();
-        self.balance += balance;
-    }
-
     pub fn get_balance(&self) -> Balance {
         self.balance
     }
@@ -90,26 +88,26 @@ impl MerkleDistributor {
         self.get_claimed_amount() > 0
     }
 
-    fn set_claim(&mut self, amount: u128) -> () {
+    fn set_claim(&mut self, amount: U128) -> () {
         self.accounts.insert(
             &env::predecessor_account_id(),
             &Account {
-                claimed_amount: amount,
+                claimed_amount: amount.into(),
                 claimed_epoch_height: env::epoch_height(),
             },
         );
-        self.balance -= amount
+        self.balance -= u128::from(amount);
     }
 
     #[payable]
-    pub fn claim(&mut self, index: u64, amount: u128, proof: Vec<String>) -> () {
+    pub fn claim(&mut self, index: U64, amount: U128, proof: Vec<String>) -> () {
         self.assert_paused();
         assert!(!self.is_claimed(), "Already claimed");
-        assert!(self.balance >= amount, "Non-sufficient fund");
+        assert!(self.balance >= amount.into(), "Non-sufficient fund");
 
-        let mut _index = index.to_le_bytes().to_vec();
+        let mut _index = u64::from(index).to_le_bytes().to_vec();
         let mut _account = env::predecessor_account_id().as_bytes().to_vec();
-        let mut _amount = amount.to_le_bytes().to_vec();
+        let mut _amount = u128::from(amount).to_le_bytes().to_vec();
 
         _index.append(&mut _account);
         _index.append(&mut _amount);
@@ -129,43 +127,72 @@ impl MerkleDistributor {
         );
 
         self.set_claim(amount);
-        self.internal_transfer(amount);
+        self.withdraw_token(amount.into());
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use near_sdk::MockedBlockchain;
+    use near_sdk::AccountId;
     use near_sdk::{testing_env, VMContext};
 
-    fn get_context(input: Vec<u8>, is_view: bool) -> VMContext {
-        VMContext {
-            current_account_id: "alice.testnet".to_string(),
-            signer_account_id: "robert.testnet".to_string(),
-            signer_account_pk: vec![0, 1, 2],
-            predecessor_account_id: "jane.testnet".to_string(),
-            input,
-            block_index: 0,
-            block_timestamp: 0,
-            account_balance: 0,
-            account_locked_balance: 0,
-            storage_usage: 0,
-            attached_deposit: 0,
-            prepaid_gas: 10u64.pow(18),
-            random_seed: vec![0, 1, 2],
-            is_view,
-            output_data_receivers: vec![],
-            epoch_height: 19,
+    struct Accounts {
+        current: AccountId,
+        owner: AccountId,
+        predecessor: AccountId,
+        token: AccountId,
+    }
+
+    struct Ctx {
+        accounts: Accounts,
+        vm: VMContext,
+    }
+
+    impl Ctx {
+        fn create_accounts() -> Accounts {
+            return Accounts {
+                current: "alice.testnet".parse().unwrap(),
+                owner: "robert.testnet".parse().unwrap(),
+                predecessor: "jane.testnet".parse().unwrap(),
+                token: "fungible_token.test".parse().unwrap(),
+            };
+        }
+
+        pub fn new(input: Vec<u8>) -> Self {
+            let accounts = Ctx::create_accounts();
+            let vm = VMContext {
+                current_account_id: accounts.current.to_string().parse().unwrap(),
+                signer_account_id: accounts.owner.to_string().parse().unwrap(),
+                signer_account_pk: vec![0, 1, 2],
+                predecessor_account_id: accounts.predecessor.to_string().parse().unwrap(),
+                input,
+                block_index: 0,
+                block_timestamp: 0,
+                account_balance: 0,
+                account_locked_balance: 0,
+                storage_usage: 0,
+                attached_deposit: 0,
+                prepaid_gas: 10u64.pow(18),
+                random_seed: vec![0, 1, 2],
+                view_config: std::option::Option::None,
+                output_data_receivers: vec![],
+                epoch_height: 19,
+            };
+            return Self {
+                accounts: accounts,
+                vm: vm,
+            };
         }
     }
 
     #[test]
     fn init_successful() {
-        let context = get_context(vec![], false);
-        testing_env!(context);
+        let context = Ctx::new(vec![]);
+        testing_env!(context.vm);
         let contract = MerkleDistributor::initialize(
             env::signer_account_id(),
+            context.accounts.token,
             "7b8bad907ecad0eab5c376a9926bbb9c38edd7303e1e22e46594eaaa333a5d12".to_string(),
         );
         assert_eq!(false, contract.is_claimed());
@@ -173,17 +200,18 @@ mod tests {
 
     #[test]
     fn claim_successful() {
-        let mut context = get_context(vec![], false);
-        context.attached_deposit = 1100;
-        testing_env!(context);
+        let mut context = Ctx::new(vec![]);
+        context.vm.attached_deposit = 1100;
+        testing_env!(context.vm);
         let mut contract = MerkleDistributor::initialize(
             env::signer_account_id(),
+            context.accounts.token,
             "a53a837856e9004a7737f9cc344e2850ef385807298169004d690dabeea699b0".to_string(),
         );
-        contract.add_balance();
+        contract.deposit_token(contract.token_id.clone(), 1100);
         contract.claim(
-            0,
-            100,
+            U64(0),
+            U128(100),
             vec![
                 "16aa0bf4f9a579de1bf742d4f854c322aa94b3eaf3254c13ae5820e3830061b5".to_string(),
                 "afb188661bca1d37b7c6c4cffd2d62ed7bd19bc0844bcdf5f44ebeacb7b394bd".to_string(),
@@ -199,17 +227,18 @@ mod tests {
     #[test]
     #[should_panic(expected = "Failed to verify proof")]
     fn claim_failed_because_input_wrong_amount() {
-        let mut context = get_context(vec![], false);
-        context.attached_deposit = 1100;
-        testing_env!(context);
+        let mut context = Ctx::new(vec![]);
+        context.vm.attached_deposit = 1100;
+        testing_env!(context.vm);
         let mut contract = MerkleDistributor::initialize(
             env::signer_account_id(),
+            context.accounts.token,
             "a53a837856e9004a7737f9cc344e2850ef385807298169004d690dabeea699b0".to_string(),
         );
-        contract.add_balance();
+        contract.deposit_token(contract.token_id.clone(), 1100);
         contract.claim(
-            0,
-            1000,
+            U64(0),
+            U128(1000),
             vec![
                 "16aa0bf4f9a579de1bf742d4f854c322aa94b3eaf3254c13ae5820e3830061b5".to_string(),
                 "afb188661bca1d37b7c6c4cffd2d62ed7bd19bc0844bcdf5f44ebeacb7b394bd".to_string(),
@@ -222,17 +251,18 @@ mod tests {
     #[test]
     #[should_panic(expected = "Already claimed")]
     fn claim_failed_because_already_claimed() {
-        let mut context = get_context(vec![], false);
-        context.attached_deposit = 1100;
-        testing_env!(context);
+        let mut context = Ctx::new(vec![]);
+        context.vm.attached_deposit = 1100;
+        testing_env!(context.vm);
         let mut contract = MerkleDistributor::initialize(
             env::signer_account_id(),
+            context.accounts.token,
             "a53a837856e9004a7737f9cc344e2850ef385807298169004d690dabeea699b0".to_string(),
         );
-        contract.add_balance();
+        contract.deposit_token(contract.token_id.clone(), 1100);
         contract.claim(
-            0,
-            100,
+            U64(0),
+            U128(100),
             vec![
                 "16aa0bf4f9a579de1bf742d4f854c322aa94b3eaf3254c13ae5820e3830061b5".to_string(),
                 "afb188661bca1d37b7c6c4cffd2d62ed7bd19bc0844bcdf5f44ebeacb7b394bd".to_string(),
@@ -242,8 +272,8 @@ mod tests {
         );
 
         contract.claim(
-            0,
-            100,
+            U64(0),
+            U128(100),
             vec![
                 "16aa0bf4f9a579de1bf742d4f854c322aa94b3eaf3254c13ae5820e3830061b5".to_string(),
                 "afb188661bca1d37b7c6c4cffd2d62ed7bd19bc0844bcdf5f44ebeacb7b394bd".to_string(),
@@ -256,18 +286,19 @@ mod tests {
     #[test]
     #[should_panic(expected = "Can only be called when not paused")]
     fn claim_failed_because_contract_is_paused() {
-        let mut context = get_context(vec![], false);
-        context.attached_deposit = 1100;
-        testing_env!(context);
+        let mut context = Ctx::new(vec![]);
+        context.vm.attached_deposit = 1100;
+        testing_env!(context.vm);
         let mut contract = MerkleDistributor::initialize(
             env::predecessor_account_id(),
+            context.accounts.token,
             "a53a837856e9004a7737f9cc344e2850ef385807298169004d690dabeea699b0".to_string(),
         );
-        contract.add_balance();
+        contract.deposit_token(contract.token_id.clone(), 1100);
         contract.pause();
         contract.claim(
-            0,
-            100,
+            U64(0),
+            U128(100),
             vec![
                 "16aa0bf4f9a579de1bf742d4f854c322aa94b3eaf3254c13ae5820e3830061b5".to_string(),
                 "afb188661bca1d37b7c6c4cffd2d62ed7bd19bc0844bcdf5f44ebeacb7b394bd".to_string(),
@@ -280,11 +311,12 @@ mod tests {
     #[test]
     #[should_panic(expected = "Can only be called by the owner")]
     fn claim_failed_because_pause_contract_not_by_owner() {
-        let mut context = get_context(vec![], false);
-        context.attached_deposit = 1100;
-        testing_env!(context);
+        let mut context = Ctx::new(vec![]);
+        context.vm.attached_deposit = 1100;
+        testing_env!(context.vm);
         let mut contract = MerkleDistributor::initialize(
             env::signer_account_id(),
+            context.accounts.token,
             "a53a837856e9004a7737f9cc344e2850ef385807298169004d690dabeea699b0".to_string(),
         );
         contract.pause();

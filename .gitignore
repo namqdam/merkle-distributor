@@ -2,3 +2,4 @@
 /node_modules
 /neardev
 merkle.json
+*.wasm
