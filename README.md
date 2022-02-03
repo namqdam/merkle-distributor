@@ -9,10 +9,11 @@ This program is largely based off of [Uniswap's Merkle Distributor](https://gith
 
 Prerequisites
 =============
+
 If you're using Gitpod, you can skip this step.
 
-  * Make sure Rust is installed per the prerequisites in [`near-sdk-rs`](https://github.com/near/near-sdk-rs).
-  * Make sure [near-cli](https://github.com/near/near-cli) is installed.
+* Make sure Rust is installed per the prerequisites in [`near-sdk-rs`](https://github.com/near/near-sdk-rs).
+* Make sure [near-cli](https://github.com/near/near-cli) is installed.
 
 Explore this contract
 =====================
@@ -21,14 +22,18 @@ The source for this contract is in `contracts/merkle-distributor/lib.rs`.
 
 Building this contract
 ======================
+
 Run the following, and we'll build our rust project up via cargo. This will generate our WASM binaries into our `target/` directory. This is the smart contract we'll be deploying onto the NEAR blockchain later.
+
 ```bash
 cargo build --target wasm32-unknown-unknown --release
 ```
 
 Testing this contract
 =====================
+
 We have some tests that you can run. For example, the following will run our simple tests to verify that our contract code is working.
+
 ```bash
 cargo test -- --nocapture
 ```
@@ -55,10 +60,11 @@ Run this command to set the environment variable:
 
 ```bash
 source neardev/dev-account.env
-export ACCOUNT_ID=acb
+export ACCOUNT_ID=aabbcc
 ```
 
 You can tell if the environment variable is set correctly if your command line prints the account name after this command:
+
 ```bash
 echo $CONTRACT_NAME
 echo $ACCOUNT_ID

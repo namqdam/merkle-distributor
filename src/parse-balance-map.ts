@@ -1,7 +1,7 @@
 import BalanceTree from './balance-tree';
 import BN from 'bn.js';
 
-interface MerkleDistributorInfo {
+export interface MerkleDistributorInfo {
   merkleRoot: string;
   tokenTotal: string;
   claims: {
@@ -16,7 +16,7 @@ interface MerkleDistributorInfo {
   };
 }
 
-type BalanceFormat = { address: string; earnings: string; reasons: string };
+export type BalanceFormat = { address: string; earnings: string; reasons: string };
 
 export function parseBalanceMap(balances: BalanceFormat[]): MerkleDistributorInfo {
   const dataByAddress = balances.reduce<{

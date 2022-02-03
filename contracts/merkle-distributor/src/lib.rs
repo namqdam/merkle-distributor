@@ -4,7 +4,7 @@ use near_sdk::{
     collections::UnorderedMap,
     env::{self, keccak256},
     json_types::{U128, U64},
-    near_bindgen, AccountId, Balance, EpochHeight, PanicOnDefault,
+    near_bindgen, require, AccountId, Balance, EpochHeight, PanicOnDefault,
 };
 
 mod constant;
@@ -43,8 +43,8 @@ pub struct MerkleDistributor {
 impl MerkleDistributor {
     #[init]
     pub fn initialize(owner_id: AccountId, token_id: AccountId, merkle_root: String) -> Self {
-        assert!(env::state_read::<Self>().is_none(), "Already initialized");
-        assert!(
+        require!(!env::state_exists(), "Already initialized");
+        require!(
             env::is_valid_account_id(owner_id.as_bytes()),
             "The owner account ID is invalid"
         );
@@ -60,14 +60,14 @@ impl MerkleDistributor {
 
     pub fn pause(&mut self) -> () {
         self.assert_owner();
-        assert!(!self.paused, "The contract is already paused");
+        require!(!self.paused, "The contract is already paused");
 
         self.paused = true;
     }
 
     pub fn resume(&mut self) -> () {
         self.assert_owner();
-        assert!(self.paused, "The contract is not paused");
+        require!(self.paused, "The contract is not paused");
 
         self.paused = false;
     }
@@ -76,16 +76,16 @@ impl MerkleDistributor {
         self.balance
     }
 
-    pub fn get_claimed_amount(&self) -> Balance {
+    pub fn get_claimed_amount(&self, account_id: AccountId) -> Balance {
         let account = self
             .accounts
-            .get(&env::predecessor_account_id())
+            .get(&account_id)
             .unwrap_or_default();
         account.claimed_amount
     }
 
-    pub fn is_claimed(&self) -> bool {
-        self.get_claimed_amount() > 0
+    pub fn get_is_claimed(&self, account_id: AccountId) -> bool {
+        self.get_claimed_amount(account_id) > 0
     }
 
     fn set_claim(&mut self, amount: U128) -> () {
@@ -102,8 +102,8 @@ impl MerkleDistributor {
     #[payable]
     pub fn claim(&mut self, index: U64, amount: U128, proof: Vec<String>) -> () {
         self.assert_paused();
-        assert!(!self.is_claimed(), "Already claimed");
-        assert!(self.balance >= amount.into(), "Non-sufficient fund");
+        require!(!self.get_is_claimed(env::predecessor_account_id()), "Already claimed");
+        require!(self.balance >= amount.into(), "Non-sufficient fund");
 
         let mut _index = u64::from(index).to_le_bytes().to_vec();
         let mut _account = env::predecessor_account_id().as_bytes().to_vec();
@@ -121,7 +121,7 @@ impl MerkleDistributor {
         let _root = merkle_proof::vec_to_array::<u8, 32>(self.merkle_root.clone());
         let _leaf = merkle_proof::vec_to_array::<u8, 32>(node);
 
-        assert!(
+        require!(
             merkle_proof::verify(_proof, _root, _leaf),
             "Failed to verify proof"
         );
@@ -195,7 +195,7 @@ mod tests {
             context.accounts.token,
             "7b8bad907ecad0eab5c376a9926bbb9c38edd7303e1e22e46594eaaa333a5d12".to_string(),
         );
-        assert_eq!(false, contract.is_claimed());
+        assert_eq!(false, contract.get_is_claimed(context.accounts.predecessor));
     }
 
     #[test]
@@ -219,9 +219,9 @@ mod tests {
                 "5f1469d2fe519c64059195d61dbca371ac14314dcdd72e83eaab10ba4e5600c2".to_string(),
             ],
         );
-        assert_eq!(true, contract.is_claimed());
+        assert_eq!(100, contract.get_claimed_amount(context.accounts.predecessor.clone()));
+        assert_eq!(true, contract.get_is_claimed(context.accounts.predecessor));
         assert_eq!(1000, contract.get_balance());
-        assert_eq!(100, contract.get_claimed_amount());
     }
 
     #[test]

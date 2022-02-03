@@ -10,6 +10,7 @@ impl FungibleTokenReceiver for MerkleDistributor {
     // Callback on receiving tokens by this contract.
     // Returns zero.
     #[allow(unused_variables)]
+    #[payable]
     fn ft_on_transfer(
         &mut self,
         sender_id: AccountId,
@@ -28,7 +29,7 @@ impl FungibleTokenReceiver for MerkleDistributor {
 impl MerkleDistributor {
     // Record deposit of some number of tokens to this contract.
     pub(crate) fn deposit_token(&mut self, token_id: AccountId, amount: Balance) {
-        assert!(
+        require!(
             token_id.to_string() == self.token_id.to_string(),
             "Wrong token on deposit"
         );
