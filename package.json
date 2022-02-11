@@ -1,7 +1,6 @@
 {
   "name": "merkle-distributor",
   "version": "1.0.0",
-  "main": "index.js",
   "author": "Nam Dam <namqdam@gmail.com>",
   "license": "GPL-3.0",
   "scripts": {

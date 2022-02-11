@@ -10,5 +10,5 @@ path = "src/lib.rs"
 
 [dependencies]
 hex = "0.4"
-near-contract-standards = "4.0.0-pre.6"
-near-sdk = "4.0.0-pre.6"
+near-contract-standards = "4.0.0-pre.7"
+near-sdk = "4.0.0-pre.7"

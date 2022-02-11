@@ -77,10 +77,7 @@ impl MerkleDistributor {
     }
 
     pub fn get_claimed_amount(&self, account_id: AccountId) -> Balance {
-        let account = self
-            .accounts
-            .get(&account_id)
-            .unwrap_or_default();
+        let account = self.accounts.get(&account_id).unwrap_or_default();
         account.claimed_amount
     }
 
@@ -102,7 +99,10 @@ impl MerkleDistributor {
     #[payable]
     pub fn claim(&mut self, index: U64, amount: U128, proof: Vec<String>) -> () {
         self.assert_paused();
-        require!(!self.get_is_claimed(env::predecessor_account_id()), "Already claimed");
+        require!(
+            !self.get_is_claimed(env::predecessor_account_id()),
+            "Already claimed"
+        );
         require!(self.balance >= amount.into(), "Non-sufficient fund");
 
         let mut _index = u64::from(index).to_le_bytes().to_vec();
@@ -112,14 +112,12 @@ impl MerkleDistributor {
         _index.append(&mut _account);
         _index.append(&mut _amount);
 
-        let node = keccak256(&_index);
-
         let _proof: Vec<[u8; 32]> = proof
             .into_iter()
             .map(|x| <[u8; 32]>::from_hex(x).ok().unwrap())
             .collect();
-        let _root = merkle_proof::vec_to_array::<u8, 32>(self.merkle_root.clone());
-        let _leaf = merkle_proof::vec_to_array::<u8, 32>(node);
+        let _root: [u8; 32] = self.merkle_root.clone().try_into().unwrap();
+        let _leaf: [u8; 32] = keccak256(&_index).try_into().unwrap();
 
         require!(
             merkle_proof::verify(_proof, _root, _leaf),
@@ -219,7 +217,10 @@ mod tests {
                 "5f1469d2fe519c64059195d61dbca371ac14314dcdd72e83eaab10ba4e5600c2".to_string(),
             ],
         );
-        assert_eq!(100, contract.get_claimed_amount(context.accounts.predecessor.clone()));
+        assert_eq!(
+            100,
+            contract.get_claimed_amount(context.accounts.predecessor.clone())
+        );
         assert_eq!(true, contract.get_is_claimed(context.accounts.predecessor));
         assert_eq!(1000, contract.get_balance());
     }
