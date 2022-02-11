@@ -57,10 +57,17 @@ describe('Deploy contracts', () => {
       gas: GAS
     });
 
+    const tokenBalance = await ftInfo.account.viewFunction(ftInfo.contract.contractId, 'ft_balance_of', {
+      account_id: ftInfo.account.accountId
+    });
+
+    const tokenClaimed = new BN(tokenBalance).add(new BN(masterInfo.merkle.tokenTotal)).sub(new BN('1000000000'));
+
     const claimedAmount = await ftInfo.account.viewFunction(masterInfo.contract.contractId, 'get_claimed_amount', {
       account_id: ftInfo.account.accountId
     });
 
     expect(new BN(claimedAmount).eq(new BN(claim.amount))).toEqual(true);
+    expect(new BN(claimedAmount).eq(tokenClaimed)).toEqual(true);
   });
 });
