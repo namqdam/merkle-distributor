@@ -2,7 +2,7 @@ use hex::FromHex;
 use near_sdk::{
     borsh::{self, BorshDeserialize, BorshSerialize},
     collections::UnorderedMap,
-    env::{self, keccak256},
+    env::{self, sha256},
     json_types::{U128, U64},
     near_bindgen, require, AccountId, Balance, EpochHeight, PanicOnDefault,
 };
@@ -117,7 +117,7 @@ impl MerkleDistributor {
             .map(|x| <[u8; 32]>::from_hex(x).ok().unwrap())
             .collect();
         let _root: [u8; 32] = self.merkle_root.clone().try_into().unwrap();
-        let _leaf: [u8; 32] = keccak256(&_index).try_into().unwrap();
+        let _leaf: [u8; 32] = sha256(&_index).try_into().unwrap();
 
         require!(
             merkle_proof::verify(_proof, _root, _leaf),
@@ -132,7 +132,6 @@ impl MerkleDistributor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use near_sdk::AccountId;
     use near_sdk::{testing_env, VMContext};
 
     struct Accounts {
@@ -152,7 +151,7 @@ mod tests {
             return Accounts {
                 current: "alice.testnet".parse().unwrap(),
                 owner: "robert.testnet".parse().unwrap(),
-                predecessor: "jane.testnet".parse().unwrap(),
+                predecessor: "namqdam.testnet".parse().unwrap(),
                 token: "fungible_token.test".parse().unwrap(),
             };
         }
@@ -191,7 +190,7 @@ mod tests {
         let contract = MerkleDistributor::initialize(
             env::signer_account_id(),
             context.accounts.token,
-            "7b8bad907ecad0eab5c376a9926bbb9c38edd7303e1e22e46594eaaa333a5d12".to_string(),
+            "307c42c3e5465f5141e1cf37782792d9317c89a27b2562615d7a0f8b7f6d884f".to_string(),
         );
         assert_eq!(false, contract.get_is_claimed(context.accounts.predecessor));
     }
@@ -204,17 +203,17 @@ mod tests {
         let mut contract = MerkleDistributor::initialize(
             env::signer_account_id(),
             context.accounts.token,
-            "a53a837856e9004a7737f9cc344e2850ef385807298169004d690dabeea699b0".to_string(),
+            "307c42c3e5465f5141e1cf37782792d9317c89a27b2562615d7a0f8b7f6d884f".to_string(),
         );
         contract.deposit_token(contract.token_id.clone(), 1100);
         contract.claim(
-            U64(0),
+            U64(1),
             U128(100),
             vec![
-                "16aa0bf4f9a579de1bf742d4f854c322aa94b3eaf3254c13ae5820e3830061b5".to_string(),
-                "afb188661bca1d37b7c6c4cffd2d62ed7bd19bc0844bcdf5f44ebeacb7b394bd".to_string(),
-                "001d2522f71f331abd7bcd7626ef29c44f5769379e54a4a0dd6992bcd1a04793".to_string(),
-                "5f1469d2fe519c64059195d61dbca371ac14314dcdd72e83eaab10ba4e5600c2".to_string(),
+                "6a2d5b6181d157b4aa4bd835c3d3c178effa7beb791ce7a23e09d6f15e0a1d9e".to_string(),
+                "48069641146afc2b0d15170388a82430de18bb9df6936fc9cb0f19ed1af9d447".to_string(),
+                "2ac07b80700ffe561b0a3d6b9f977948b7b1be9338452ba63bdb50565cee8587".to_string(),
+                "c9d90c5c20104536d834097481f8fff6bb0a34ec7b724d13d62c6c9abbb3c31c".to_string(),
             ],
         );
         assert_eq!(
@@ -234,17 +233,17 @@ mod tests {
         let mut contract = MerkleDistributor::initialize(
             env::signer_account_id(),
             context.accounts.token,
-            "a53a837856e9004a7737f9cc344e2850ef385807298169004d690dabeea699b0".to_string(),
+            "307c42c3e5465f5141e1cf37782792d9317c89a27b2562615d7a0f8b7f6d884f".to_string(),
         );
         contract.deposit_token(contract.token_id.clone(), 1100);
         contract.claim(
-            U64(0),
+            U64(1),
             U128(1000),
             vec![
-                "16aa0bf4f9a579de1bf742d4f854c322aa94b3eaf3254c13ae5820e3830061b5".to_string(),
-                "afb188661bca1d37b7c6c4cffd2d62ed7bd19bc0844bcdf5f44ebeacb7b394bd".to_string(),
-                "001d2522f71f331abd7bcd7626ef29c44f5769379e54a4a0dd6992bcd1a04793".to_string(),
-                "5f1469d2fe519c64059195d61dbca371ac14314dcdd72e83eaab10ba4e5600c2".to_string(),
+                "6a2d5b6181d157b4aa4bd835c3d3c178effa7beb791ce7a23e09d6f15e0a1d9e".to_string(),
+                "48069641146afc2b0d15170388a82430de18bb9df6936fc9cb0f19ed1af9d447".to_string(),
+                "2ac07b80700ffe561b0a3d6b9f977948b7b1be9338452ba63bdb50565cee8587".to_string(),
+                "c9d90c5c20104536d834097481f8fff6bb0a34ec7b724d13d62c6c9abbb3c31c".to_string(),
             ],
         );
     }
@@ -258,28 +257,28 @@ mod tests {
         let mut contract = MerkleDistributor::initialize(
             env::signer_account_id(),
             context.accounts.token,
-            "a53a837856e9004a7737f9cc344e2850ef385807298169004d690dabeea699b0".to_string(),
+            "307c42c3e5465f5141e1cf37782792d9317c89a27b2562615d7a0f8b7f6d884f".to_string(),
         );
         contract.deposit_token(contract.token_id.clone(), 1100);
         contract.claim(
-            U64(0),
+            U64(1),
             U128(100),
             vec![
-                "16aa0bf4f9a579de1bf742d4f854c322aa94b3eaf3254c13ae5820e3830061b5".to_string(),
-                "afb188661bca1d37b7c6c4cffd2d62ed7bd19bc0844bcdf5f44ebeacb7b394bd".to_string(),
-                "001d2522f71f331abd7bcd7626ef29c44f5769379e54a4a0dd6992bcd1a04793".to_string(),
-                "5f1469d2fe519c64059195d61dbca371ac14314dcdd72e83eaab10ba4e5600c2".to_string(),
+                "6a2d5b6181d157b4aa4bd835c3d3c178effa7beb791ce7a23e09d6f15e0a1d9e".to_string(),
+                "48069641146afc2b0d15170388a82430de18bb9df6936fc9cb0f19ed1af9d447".to_string(),
+                "2ac07b80700ffe561b0a3d6b9f977948b7b1be9338452ba63bdb50565cee8587".to_string(),
+                "c9d90c5c20104536d834097481f8fff6bb0a34ec7b724d13d62c6c9abbb3c31c".to_string(),
             ],
         );
 
         contract.claim(
-            U64(0),
+            U64(1),
             U128(100),
             vec![
-                "16aa0bf4f9a579de1bf742d4f854c322aa94b3eaf3254c13ae5820e3830061b5".to_string(),
-                "afb188661bca1d37b7c6c4cffd2d62ed7bd19bc0844bcdf5f44ebeacb7b394bd".to_string(),
-                "001d2522f71f331abd7bcd7626ef29c44f5769379e54a4a0dd6992bcd1a04793".to_string(),
-                "5f1469d2fe519c64059195d61dbca371ac14314dcdd72e83eaab10ba4e5600c2".to_string(),
+                "6a2d5b6181d157b4aa4bd835c3d3c178effa7beb791ce7a23e09d6f15e0a1d9e".to_string(),
+                "48069641146afc2b0d15170388a82430de18bb9df6936fc9cb0f19ed1af9d447".to_string(),
+                "2ac07b80700ffe561b0a3d6b9f977948b7b1be9338452ba63bdb50565cee8587".to_string(),
+                "c9d90c5c20104536d834097481f8fff6bb0a34ec7b724d13d62c6c9abbb3c31c".to_string(),
             ],
         );
     }
@@ -293,18 +292,18 @@ mod tests {
         let mut contract = MerkleDistributor::initialize(
             env::predecessor_account_id(),
             context.accounts.token,
-            "a53a837856e9004a7737f9cc344e2850ef385807298169004d690dabeea699b0".to_string(),
+            "307c42c3e5465f5141e1cf37782792d9317c89a27b2562615d7a0f8b7f6d884f".to_string(),
         );
         contract.deposit_token(contract.token_id.clone(), 1100);
         contract.pause();
         contract.claim(
-            U64(0),
+            U64(1),
             U128(100),
             vec![
-                "16aa0bf4f9a579de1bf742d4f854c322aa94b3eaf3254c13ae5820e3830061b5".to_string(),
-                "afb188661bca1d37b7c6c4cffd2d62ed7bd19bc0844bcdf5f44ebeacb7b394bd".to_string(),
-                "001d2522f71f331abd7bcd7626ef29c44f5769379e54a4a0dd6992bcd1a04793".to_string(),
-                "5f1469d2fe519c64059195d61dbca371ac14314dcdd72e83eaab10ba4e5600c2".to_string(),
+                "6a2d5b6181d157b4aa4bd835c3d3c178effa7beb791ce7a23e09d6f15e0a1d9e".to_string(),
+                "48069641146afc2b0d15170388a82430de18bb9df6936fc9cb0f19ed1af9d447".to_string(),
+                "2ac07b80700ffe561b0a3d6b9f977948b7b1be9338452ba63bdb50565cee8587".to_string(),
+                "c9d90c5c20104536d834097481f8fff6bb0a34ec7b724d13d62c6c9abbb3c31c".to_string(),
             ],
         );
     }
@@ -318,7 +317,7 @@ mod tests {
         let mut contract = MerkleDistributor::initialize(
             env::signer_account_id(),
             context.accounts.token,
-            "a53a837856e9004a7737f9cc344e2850ef385807298169004d690dabeea699b0".to_string(),
+            "307c42c3e5465f5141e1cf37782792d9317c89a27b2562615d7a0f8b7f6d884f".to_string(),
         );
         contract.pause();
     }
