@@ -1,7 +1,7 @@
-import fs from 'fs';
-import path from 'path';
-import https from 'https';
 import { execSync } from 'child_process';
+import fs from 'fs';
+import https from 'https';
+import path from 'path';
 
 function downloadFT() {
   return new Promise<void>((resolve, reject) => {
@@ -15,9 +15,8 @@ function downloadFT() {
       .get(ftPath, (response) => {
         response.pipe(file);
         file.on('finish', () => {
-          file.close(() => {
-            resolve();
-          });
+          file.close();
+          resolve();
         });
       })
       .on('error', (err) => {

@@ -1,6 +1,7 @@
 import { BN } from 'bn.js';
-import { Account, Contract, transactions } from 'near-api-js';
+import { Account, Contract } from 'near-api-js';
 import { parseNearAmount } from 'near-api-js/lib/utils/format';
+
 import { BalanceFormat, MerkleDistributorInfo } from '../src/parse-balance-map';
 import testUtils from './test-utils';
 
@@ -28,7 +29,7 @@ describe('Deploy contracts', () => {
   });
 
   test('Simple merkle', async () => {
-    let claim = masterInfo.merkle.claims[ftInfo.account.accountId];
+    const claim = masterInfo.merkle.claims[ftInfo.account.accountId];
 
     await ftInfo.account.functionCall({
       contractId: ftInfo.contract.contractId,

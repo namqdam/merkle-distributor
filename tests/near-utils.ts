@@ -1,6 +1,7 @@
 import fs from 'fs';
-import { Near, Account, Contract, KeyPair } from 'near-api-js';
+import { Account, Contract, KeyPair, Near } from 'near-api-js';
 import { InMemoryKeyStore } from 'near-api-js/lib/key_stores';
+
 import config from './config';
 
 const { masterContractId, nodeUrl, networkId } = config;

@@ -1,4 +1,4 @@
-const masterContractId = 'dev-1644575201145-68655065535591';
+const masterContractId = 'dev-1645354480430-48965257052981';
 
 export default {
   networkId: 'testnet',

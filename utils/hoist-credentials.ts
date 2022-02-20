@@ -1,4 +1,5 @@
 import fs from 'fs';
+
 import config from '../tests/config';
 
 const { networkId, masterContractId } = config;

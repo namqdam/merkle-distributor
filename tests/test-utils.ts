@@ -1,8 +1,8 @@
 import BN from 'bn.js';
 import { nanoid } from 'nanoid';
 
-import nearInfo from './near-utils';
 import { BalanceFormat, parseBalanceMap } from '../src/parse-balance-map';
+import nearInfo from './near-utils';
 
 const { masterAccount, ftAccount, masterContract, ftContract, config, near, keyStore } = nearInfo;
 const GAS = new BN('200000000000000');
